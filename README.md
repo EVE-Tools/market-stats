@@ -1,5 +1,5 @@
 # Market Stats
-[![Build Status](https://drone.element-43.com/api/badges/EVE-Tools/market-stats/status.svg)](https://drone.element-43.com/EVE-Tools/market-stats) [![Go Report Card](https://goreportcard.com/badge/github.com/eve-tools/market-stats)](https://goreportcard.com/report/github.com/eve-tools/market-stats)
+[![Build Status](https://drone.element-43.com/api/badges/EVE-Tools/market-stats/status.svg)](https://drone.element-43.com/EVE-Tools/market-stats) [![Go Report Card](https://goreportcard.com/badge/github.com/EVE-Tools/market-stats)](https://goreportcard.com/report/github.com/EVE-Tools/market-stats)
 
 This service for [Element43](https://element-43.com) calculates various market metrics based on historical data. Every night it fetches the entire market history from ESI and calculates the following metrics:
 
