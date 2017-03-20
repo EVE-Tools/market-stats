@@ -1,0 +1,36 @@
+CREATE TABLE IF NOT EXISTS "stats" (
+	"region_id" int4 NOT NULL,
+	"type_id" int4 NOT NULL,
+    "generated_at" date NOT NULL,
+	"date" date NOT NULL,
+    "highest" real NOT NULL,
+    "lowest" real NOT NULL,
+    "average" real NOT NULL,
+    "volume" int8 NOT NULL,
+    "order_count" int8 NOT NULL,
+    "previous_date" date NOT NULL,
+    "previous_highest" real NOT NULL,
+    "previous_lowest" real NOT NULL,
+    "previous_average" real NOT NULL,
+    "previous_volume" int8 NOT NULL,
+    "previous_order_count" int8 NOT NULL,
+    "week_price_weighted_average" double precision NOT NULL,
+    "week_price_average" double precision NOT NULL,
+    "week_price_average_standard_deviation" double precision NOT NULL,
+    "week_price_average_relative_standard_deviation" double precision NOT NULL,
+    "week_isk_volume_average" double precision NOT NULL,
+    "week_isk_volume_average_standard_deviation" double precision NOT NULL,
+    "week_isk_volume_average_relative_standard_deviation" double precision NOT NULL,
+    "week_order_count_total" int8 NOT NULL,
+    "week_order_count_average" double precision NOT NULL,
+    "week_order_count_standard_deviation" double precision NOT NULL,
+    "week_order_count_relative_standard_deviation" double precision NOT NULL,
+    "week_volume_total" int8 NOT NULL,
+    "week_volume_average" double precision NOT NULL,
+    "week_volume_standard_deviation" double precision NOT NULL,
+    "week_volume_relative_standard_deviation" double precision NOT NULL,
+	PRIMARY KEY ("region_id", "type_id")
+);
+
+CREATE INDEX "region_id" ON "stats" ("region_id");
+CREATE INDEX "type_id" ON "stats" ("type_id");
