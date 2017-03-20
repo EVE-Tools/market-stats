@@ -51,7 +51,7 @@ Builds and releases are handled by Drone.
 Environment Variable | Default | Description
 --- | --- | ---
 SEED_DB | false | Fetch all data from ESI on startup, ignoring the normal schedule
-CRON | 5 1 * * * | Defines when to run data collection (1:05am UTC every day avoids getting cached data)
+CRON | 0 5 1 * * * | Defines when to run data collection (1:05am UTC every day avoids getting cached data)
 LOG_LEVEL | info | Threshold for logging messages to be printed
 POSTGRES_URL| postgres://market-stats@localhost:5432/market-stats?sslmode=disable | URL to this service's Postgres database
 PORT | 8000 | Port for the API server to listen on
