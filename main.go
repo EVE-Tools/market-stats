@@ -297,7 +297,7 @@ func generateStats(regionTypes []types.RegionType) {
 	// 2: Bulk results
 	// 3: DB upserter
 
-	// 800k items ---> 100 x ESI + calculation --(10,000)--> 1 x packer to 1,000 --(50)--> 50 x DB upserter
+	// 800k items ---> 1000 x ESI + calculation --(10,000)--> 1 x packer to 1,000 --(50)--> 50 x DB upserter
 
 	logrus.Debugf("Processing %d regionTypes.", len(regionTypes))
 
@@ -309,7 +309,7 @@ func generateStats(regionTypes []types.RegionType) {
 	}
 
 	// Create ESI download/calculator response, termination and data forward channels
-	const esiWorkers = 500
+	const esiWorkers = 1000
 	var esiItemsLeft = len(regionTypes)
 	var esiDone = make(chan error, esiWorkers)
 	var esiTerminate = make(chan struct{})
@@ -822,7 +822,7 @@ func loadConfig() Config {
 		panic(err)
 	}
 
-	esiSemaphore = make(chan struct{}, 500)
+	esiSemaphore = make(chan struct{}, 1000)
 
 	logrus.SetLevel(logLevel)
 	logrus.Debugf("Config: %q", config)
