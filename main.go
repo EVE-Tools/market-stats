@@ -35,6 +35,8 @@ type Config struct {
 }
 
 var db *sql.DB
+
+// For limiting requests to type API
 var esiSemaphore chan struct{}
 
 func main() {
@@ -307,11 +309,11 @@ func generateStats(regionTypes []types.RegionType) {
 	}
 
 	// Create ESI download/calculator response, termination and data forward channels
-	const esiWorkers = 1000
+	const esiWorkers = 2000
 	var esiItemsLeft = len(regionTypes)
 	var esiDone = make(chan error, esiWorkers)
 	var esiTerminate = make(chan struct{})
-	var bulkBacklog = make(chan *types.RegionStats, 10000)
+	var bulkBacklog = make(chan *types.RegionStats, 5000)
 
 	for i := 0; i < esiWorkers; i++ {
 		go esiWorker(backlog, esiDone, esiTerminate, bulkBacklog)
@@ -421,9 +423,7 @@ func downloadStats(regionType *types.RegionType) ([]*market.GetMarketsRegionIDHi
 	var err error
 
 	for retries := 3; retries > 0; retries-- {
-		esiSemaphore <- struct{}{}
 		response, err := ESIClient.Default.Market.GetMarketsRegionIDHistory(params)
-		<-esiSemaphore
 
 		if err == nil {
 			return response.Payload, nil
@@ -820,7 +820,7 @@ func loadConfig() Config {
 		panic(err)
 	}
 
-	esiSemaphore = make(chan struct{}, 1000)
+	esiSemaphore = make(chan struct{}, 500)
 
 	logrus.SetLevel(logLevel)
 	logrus.Debugf("Config: %q", config)
