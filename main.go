@@ -9,8 +9,6 @@ import (
 
 	"database/sql"
 
-	_ "net/http/pprof"
-
 	ESIClient "github.com/EVE-Tools/market-stats/client"
 	"github.com/EVE-Tools/market-stats/client/market"
 	"github.com/EVE-Tools/market-stats/client/universe"
