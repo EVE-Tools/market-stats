@@ -309,7 +309,7 @@ func generateStats(regionTypes []types.RegionType) {
 	}
 
 	// Create ESI download/calculator response, termination and data forward channels
-	const esiWorkers = 2000
+	const esiWorkers = 200
 	var esiItemsLeft = len(regionTypes)
 	var esiDone = make(chan error, esiWorkers)
 	var esiTerminate = make(chan struct{})
@@ -820,7 +820,7 @@ func loadConfig() Config {
 		panic(err)
 	}
 
-	esiSemaphore = make(chan struct{}, 500)
+	esiSemaphore = make(chan struct{}, 200)
 
 	logrus.SetLevel(logLevel)
 	logrus.Debugf("Config: %q", config)
