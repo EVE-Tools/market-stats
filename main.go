@@ -505,7 +505,7 @@ func calculateStats(regionType *types.RegionType, history []*market.GetMarketsRe
 	retval.WeekOrderCountTotal = int64(sum)
 	retval.WeekOrderCountAverage = sum / float64(len(orderCountSeries))
 	retval.WeekOrderCountStandardDeviation = stdDeviation
-	retval.WeekOrderCountRelativeStandardDeviation = stdDeviation / sum
+	retval.WeekOrderCountRelativeStandardDeviation = stdDeviation / retval.WeekOrderCountAverage
 
 	// Volume
 	sum, err = stats.Sum(volumeSeries)
@@ -521,7 +521,7 @@ func calculateStats(regionType *types.RegionType, history []*market.GetMarketsRe
 	retval.WeekVolumeTotal = int64(sum)
 	retval.WeekVolumeAverage = sum / float64(len(volumeSeries))
 	retval.WeekVolumeStandardDeviation = stdDeviation
-	retval.WeekVolumeRelativeStandardDeviation = stdDeviation / sum
+	retval.WeekVolumeRelativeStandardDeviation = stdDeviation / retval.WeekVolumeAverage
 
 	// ISK Volume
 	sumISK, err := stats.Sum(iskVolumeSeries)
