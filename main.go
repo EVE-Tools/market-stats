@@ -63,7 +63,7 @@ func connectToDB(config Config) {
 	if err != nil {
 		panic(err)
 	}
-	db.SetMaxOpenConns(20)
+	db.SetMaxOpenConns(50)
 }
 
 // Check database and migrate if needed.
