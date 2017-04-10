@@ -684,6 +684,7 @@ func getRegion(context *gin.Context) {
 	}
 
 	rows, err := tx.Query(query, regionID)
+	defer rows.Close()
 	if err != nil {
 		context.AbortWithError(500, err)
 		return
@@ -720,6 +721,7 @@ func getType(context *gin.Context) {
 	}
 
 	rows, err := tx.Query(query, typeID)
+	defer rows.Close()
 	if err != nil {
 		context.AbortWithError(500, err)
 		return
@@ -757,12 +759,12 @@ func getRegionType(context *gin.Context) {
 	}
 
 	rows, err := tx.Query(query, regionID, typeID)
+	defer rows.Close()
 	if err != nil {
 		context.AbortWithError(500, err)
 		return
 	}
 
-	defer rows.Close()
 	var market []byte
 
 	for rows.Next() {
