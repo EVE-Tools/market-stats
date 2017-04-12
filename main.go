@@ -662,6 +662,7 @@ func upsertStats(regionStats []*types.RegionStats) error {
 	}
 	_, err = tx.Exec(query, values...)
 	if err != nil {
+		_ = tx.Rollback()
 		return err
 	}
 
@@ -677,13 +678,8 @@ func getRegion(context *gin.Context) {
 	regionID := context.Param("regionID")
 
 	query := `SELECT row_to_json(row) FROM (SELECT * FROM "stats" WHERE "region_id" = $1) row`
-	tx, err := db.Begin()
-	if err != nil {
-		context.AbortWithError(500, err)
-		return
-	}
 
-	rows, err := tx.Query(query, regionID)
+	rows, err := db.Query(query, regionID)
 	defer rows.Close()
 	if err != nil {
 		context.AbortWithError(500, err)
@@ -697,12 +693,6 @@ func getRegion(context *gin.Context) {
 
 	if numRows == 0 {
 		context.AbortWithStatus(404)
-		return
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		context.AbortWithError(500, err)
 		return
 	}
 
@@ -714,13 +704,8 @@ func getType(context *gin.Context) {
 	typeID := context.Param("typeID")
 
 	query := `SELECT row_to_json(rows) FROM (SELECT * FROM "stats" WHERE "type_id" = $1) rows`
-	tx, err := db.Begin()
-	if err != nil {
-		context.AbortWithError(500, err)
-		return
-	}
 
-	rows, err := tx.Query(query, typeID)
+	rows, err := db.Query(query, typeID)
 	defer rows.Close()
 	if err != nil {
 		context.AbortWithError(500, err)
@@ -734,12 +719,6 @@ func getType(context *gin.Context) {
 
 	if numRows == 0 {
 		context.AbortWithStatus(404)
-		return
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		context.AbortWithError(500, err)
 		return
 	}
 
@@ -752,13 +731,8 @@ func getRegionType(context *gin.Context) {
 	typeID := context.Param("typeID")
 
 	query := `SELECT row_to_json(row) FROM (SELECT * FROM "stats" WHERE "region_id" = $1 AND "type_id" = $2) row`
-	tx, err := db.Begin()
-	if err != nil {
-		context.AbortWithError(500, err)
-		return
-	}
 
-	rows, err := tx.Query(query, regionID, typeID)
+	rows, err := db.Query(query, regionID, typeID)
 	defer rows.Close()
 	if err != nil {
 		context.AbortWithError(500, err)
@@ -779,15 +753,8 @@ func getRegionType(context *gin.Context) {
 		return
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		context.AbortWithError(500, err)
-		return
-	}
-
 	context.Header("Access-Control-Allow-Origin", "*")
 	context.Data(200, "application/json; charset=utf-8", market)
-
 }
 
 func convertRowsToJSON(rows *sql.Rows) (int, []byte, error) {
