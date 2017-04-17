@@ -9,11 +9,10 @@ import (
 
 	"database/sql"
 
-	ESIClient "github.com/EVE-Tools/market-stats/client"
-	"github.com/EVE-Tools/market-stats/client/market"
-	"github.com/EVE-Tools/market-stats/client/universe"
 	"github.com/EVE-Tools/market-stats/lib/types"
 	"github.com/Sirupsen/logrus"
+	"github.com/antihax/goesi"
+	"github.com/antihax/goesi/v1"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/contrib/ginrus"
 	"github.com/gin-gonic/gin"
@@ -37,9 +36,12 @@ type Config struct {
 var db *sql.DB
 
 // For limiting requests to type API
+var esiClient goesi.APIClient
 var esiSemaphore chan struct{}
 
 func main() {
+	esiClient = *goesi.NewAPIClient(nil, "Element43/market-stats (element-43.com)")
+
 	config := loadConfig()
 	connectToDB(config)
 	migrateDB(config)
@@ -120,12 +122,12 @@ func updateHistoryStats() {
 
 // Get all regionIDs from ESI
 func getRegionIDs() ([]int32, error) {
-	regionResult, err := ESIClient.Default.Universe.GetUniverseRegions(nil)
+	regionIDs, _, err := esiClient.V1.UniverseApi.GetUniverseRegions(nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return regionResult.Payload, nil
+	return regionIDs, nil
 }
 
 // Get all regions with a market (filter WH)
@@ -146,34 +148,34 @@ func getMarketRegions() ([]int32, error) {
 }
 
 // Get all typeIDs from ESI
+// TODO: move to static-data RPC
 func getTypeIDs() ([]int32, error) {
 	var typeIDs []int32
+	params := make(map[string]interface{})
+	params["page"] = int32(1)
 
-	params := universe.NewGetUniverseTypesParams()
-	page := int32(1)
-	params.Page = &page
-
-	esi := ESIClient.Default
-
-	typeResult, err := esi.Universe.GetUniverseTypes(params)
+	typeResult, _, err := esiClient.V1.UniverseApi.GetUniverseTypes(params)
 	if err != nil {
 		return nil, err
 	}
-	typeIDs = append(typeIDs, typeResult.Payload...)
 
-	for len(typeResult.Payload) > 0 {
-		page++
-		typeResult, err = esi.Universe.GetUniverseTypes(params)
+	typeIDs = append(typeIDs, typeResult...)
+
+	for len(typeResult) > 0 {
+		params["page"] = params["page"].(int32) + 1
+		typeResult, _, err = esiClient.V1.UniverseApi.GetUniverseTypes(params)
 		if err != nil {
 			return nil, err
 		}
-		typeIDs = append(typeIDs, typeResult.Payload...)
+
+		typeIDs = append(typeIDs, typeResult...)
 	}
 
 	return typeIDs, nil
 }
 
 // Get all types on market
+// TODO: move to static-data RPC
 func getMarketTypes() ([]int32, error) {
 	typeIDs, err := getTypeIDs()
 	if err != nil {
@@ -238,20 +240,15 @@ func checkIfMarketTypeAsyncRetry(typeID int32, marketTypes chan int32, nonMarket
 
 // Check if type is market type
 func checkIfMarketType(typeID int32) (bool, error) {
-	params := universe.NewGetUniverseTypesTypeIDParams()
-	params.SetTypeID(typeID)
-
 	esiSemaphore <- struct{}{}
-	response, err := ESIClient.Default.Universe.GetUniverseTypesTypeID(params)
+	typeInfo, _, err := esiClient.V3.UniverseApi.GetUniverseTypesTypeId(typeID, nil)
 	<-esiSemaphore
 	if err != nil {
 		return false, err
 	}
 
-	typeInfo := response.Payload
-
 	// If it is published and has a market group it is a market type!
-	if (typeInfo.Published != nil) && *typeInfo.Published && (typeInfo.MarketGroupID != nil) {
+	if typeInfo.Published && (typeInfo.MarketGroupId != 0) {
 		return true, nil
 	}
 
@@ -415,18 +412,14 @@ func esiWorker(backlog <-chan *types.RegionType, done chan<- error, terminate <-
 }
 
 // Download stats from ESI - try three times
-func downloadStats(regionType *types.RegionType) ([]*market.GetMarketsRegionIDHistoryOKBodyItems0, error) {
-	params := market.NewGetMarketsRegionIDHistoryParams()
-	params.SetRegionID(regionType.RegionID)
-	params.SetTypeID(regionType.TypeID)
-
+func downloadStats(regionType *types.RegionType) ([]goesiv1.GetMarketsRegionIdHistory200Ok, error) {
 	var err error
 
 	for retries := 3; retries > 0; retries-- {
-		response, err := ESIClient.Default.Market.GetMarketsRegionIDHistory(params)
+		history, _, err := esiClient.V1.MarketApi.GetMarketsRegionIdHistory(regionType.RegionID, regionType.TypeID, nil)
 
 		if err == nil {
-			return response.Payload, nil
+			return history, nil
 		}
 	}
 
@@ -434,14 +427,14 @@ func downloadStats(regionType *types.RegionType) ([]*market.GetMarketsRegionIDHi
 }
 
 // Calculate stats
-func calculateStats(regionType *types.RegionType, history []*market.GetMarketsRegionIDHistoryOKBodyItems0) (*types.RegionStats, error) {
+func calculateStats(regionType *types.RegionType, history []goesiv1.GetMarketsRegionIdHistory200Ok) (*types.RegionStats, error) {
 	retval := types.RegionStats{}
 	retval.RegionID = regionType.RegionID
 	retval.TypeID = regionType.TypeID
 	retval.GeneratedAt = time.Now()
 
 	aWeekAgo := time.Now().AddDate(0, 0, -8)
-	var datapoints []*market.GetMarketsRegionIDHistoryOKBodyItems0
+	var datapoints []goesiv1.GetMarketsRegionIdHistory200Ok
 
 	var priceSeries []float64
 	var volumeSeries []float64
@@ -449,12 +442,18 @@ func calculateStats(regionType *types.RegionType, history []*market.GetMarketsRe
 	var orderCountSeries []float64
 
 	for _, point := range history {
-		if aWeekAgo.Before(time.Time(*point.Date)) {
+
+		historyDate, err := time.Parse("2006-01-02", point.Date)
+		if err != nil {
+			return nil, err
+		}
+
+		if aWeekAgo.Before(historyDate) {
 			datapoints = append(datapoints, point)
-			priceSeries = append(priceSeries, float64(*point.Average))
-			volumeSeries = append(volumeSeries, float64(*point.Volume))
-			iskVolumeSeries = append(iskVolumeSeries, float64(*point.Average)*float64(*point.Volume))
-			orderCountSeries = append(orderCountSeries, float64(*point.OrderCount))
+			priceSeries = append(priceSeries, float64(point.Average))
+			volumeSeries = append(volumeSeries, float64(point.Volume))
+			iskVolumeSeries = append(iskVolumeSeries, float64(point.Average)*float64(point.Volume))
+			orderCountSeries = append(orderCountSeries, float64(point.OrderCount))
 		}
 	}
 
@@ -469,21 +468,33 @@ func calculateStats(regionType *types.RegionType, history []*market.GetMarketsRe
 
 	// Get most recent point
 	currentStats := datapoints[len(datapoints)-1]
-	retval.Date = time.Time(*currentStats.Date)
-	retval.Average = *currentStats.Average
-	retval.Highest = *currentStats.Highest
-	retval.Lowest = *currentStats.Lowest
-	retval.Volume = *currentStats.Volume
-	retval.OrderCount = *currentStats.OrderCount
+
+	currentStatsDate, err := time.Parse("2006-01-02", currentStats.Date)
+	if err != nil {
+		return nil, err
+	}
+
+	retval.Date = currentStatsDate
+	retval.Average = currentStats.Average
+	retval.Highest = currentStats.Highest
+	retval.Lowest = currentStats.Lowest
+	retval.Volume = currentStats.Volume
+	retval.OrderCount = currentStats.OrderCount
 
 	// Get previous (most of the time this should be yesterday) point
 	yesterdaysStats := datapoints[len(datapoints)-2]
-	retval.PreviousDate = time.Time(*yesterdaysStats.Date)
-	retval.PreviousAverage = *yesterdaysStats.Average
-	retval.PreviousHighest = *yesterdaysStats.Highest
-	retval.PreviousLowest = *yesterdaysStats.Lowest
-	retval.PreviousVolume = *yesterdaysStats.Volume
-	retval.PreviousOrderCount = *yesterdaysStats.OrderCount
+
+	yesterdaysStatsDate, err := time.Parse("2006-01-02", yesterdaysStats.Date)
+	if err != nil {
+		return nil, err
+	}
+
+	retval.PreviousDate = yesterdaysStatsDate
+	retval.PreviousAverage = yesterdaysStats.Average
+	retval.PreviousHighest = yesterdaysStats.Highest
+	retval.PreviousLowest = yesterdaysStats.Lowest
+	retval.PreviousVolume = yesterdaysStats.Volume
+	retval.PreviousOrderCount = yesterdaysStats.OrderCount
 
 	//
 	// Calculate stats
