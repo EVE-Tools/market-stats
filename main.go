@@ -18,10 +18,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/kelseyhightower/envconfig"
 	_ "github.com/lib/pq"
-	_ "github.com/mattes/migrate/driver/postgres"
-	"github.com/mattes/migrate/migrate"
 	"github.com/montanaflynn/stats"
 	"github.com/robfig/cron"
+	_ "gopkg.in/mattes/migrate.v1/driver/postgres"
+	"gopkg.in/mattes/migrate.v1/migrate"
 )
 
 // Config holds the application's configuration info from the environment.
