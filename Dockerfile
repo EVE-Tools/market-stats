@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM alpine:3.6
 
 #
 # Copy release to container and set command
