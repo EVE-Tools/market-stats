@@ -3,16 +3,17 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"runtime"
 	"strings"
 	"time"
 
 	"database/sql"
 
+	"github.com/EVE-Tools/element43/go/lib/transport"
 	"github.com/EVE-Tools/market-stats/lib/types"
-	"github.com/Sirupsen/logrus"
 	"github.com/antihax/goesi"
-	"github.com/antihax/goesi/v1"
+	"github.com/antihax/goesi/esi"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/contrib/ginrus"
 	"github.com/gin-gonic/gin"
@@ -20,6 +21,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/montanaflynn/stats"
 	"github.com/robfig/cron"
+	"github.com/sirupsen/logrus"
 	_ "gopkg.in/mattes/migrate.v1/driver/postgres"
 	"gopkg.in/mattes/migrate.v1/migrate"
 )
@@ -27,7 +29,7 @@ import (
 // Config holds the application's configuration info from the environment.
 type Config struct {
 	SeedDB      bool   `default:"false" envconfig:"seed_db"`
-	Cron        string `default:"0 5 1 * * *" envconfig:"cron"`
+	Cron        string `default:"0 52 * * * *" envconfig:"cron"`
 	LogLevel    string `default:"debug" split_words:"true"`
 	PostgresURL string `default:"postgres://market-stats@localhost:5432/market-stats?sslmode=disable" envconfig:"postgres_url"`
 	Port        string `default:"8000" envconfig:"port"`
@@ -40,7 +42,15 @@ var esiClient goesi.APIClient
 var esiSemaphore chan struct{}
 
 func main() {
-	esiClient = *goesi.NewAPIClient(nil, "Element43/market-stats (element-43.com)")
+	const userAgent string = "Element43/market-stats (element-43.com)"
+	const timeout time.Duration = time.Duration(time.Second * 30)
+
+	httpClient := &http.Client{
+		Timeout:   timeout,
+		Transport: transport.NewESITransport(userAgent, timeout),
+	}
+
+	esiClient = *goesi.NewAPIClient(httpClient, "Element43/market-stats (element-43.com)")
 
 	config := loadConfig()
 	connectToDB(config)
@@ -122,7 +132,7 @@ func updateHistoryStats() {
 
 // Get all regionIDs from ESI
 func getRegionIDs() ([]int32, error) {
-	regionIDs, _, err := esiClient.V1.UniverseApi.GetUniverseRegions(nil)
+	regionIDs, _, err := esiClient.ESI.UniverseApi.GetUniverseRegions(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +164,7 @@ func getTypeIDs() ([]int32, error) {
 	params := make(map[string]interface{})
 	params["page"] = int32(1)
 
-	typeResult, _, err := esiClient.V1.UniverseApi.GetUniverseTypes(params)
+	typeResult, _, err := esiClient.ESI.UniverseApi.GetUniverseTypes(params)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +173,7 @@ func getTypeIDs() ([]int32, error) {
 
 	for len(typeResult) > 0 {
 		params["page"] = params["page"].(int32) + 1
-		typeResult, _, err = esiClient.V1.UniverseApi.GetUniverseTypes(params)
+		typeResult, _, err = esiClient.ESI.UniverseApi.GetUniverseTypes(params)
 		if err != nil {
 			return nil, err
 		}
@@ -241,14 +251,15 @@ func checkIfMarketTypeAsyncRetry(typeID int32, marketTypes chan int32, nonMarket
 // Check if type is market type
 func checkIfMarketType(typeID int32) (bool, error) {
 	esiSemaphore <- struct{}{}
-	typeInfo, _, err := esiClient.V3.UniverseApi.GetUniverseTypesTypeId(typeID, nil)
+	typeInfo, _, err := esiClient.ESI.UniverseApi.GetUniverseTypesTypeId(typeID, nil)
 	<-esiSemaphore
 	if err != nil {
 		return false, err
 	}
 
+	// TODO: update once endpoint is deployed
 	// If it is published and has a market group it is a market type!
-	if typeInfo.Published && (typeInfo.MarketGroupId != 0) {
+	if typeInfo.Published /*&& (typeInfo.MarketGroupId != 0)*/ {
 		return true, nil
 	}
 
@@ -412,11 +423,11 @@ func esiWorker(backlog <-chan *types.RegionType, done chan<- error, terminate <-
 }
 
 // Download stats from ESI - try three times
-func downloadStats(regionType *types.RegionType) ([]goesiv1.GetMarketsRegionIdHistory200Ok, error) {
+func downloadStats(regionType *types.RegionType) ([]esi.GetMarketsRegionIdHistory200Ok, error) {
 	var err error
 
 	for retries := 3; retries > 0; retries-- {
-		history, _, err := esiClient.V1.MarketApi.GetMarketsRegionIdHistory(regionType.RegionID, regionType.TypeID, nil)
+		history, _, err := esiClient.ESI.MarketApi.GetMarketsRegionIdHistory(regionType.RegionID, regionType.TypeID, nil)
 
 		if err == nil {
 			return history, nil
@@ -427,14 +438,14 @@ func downloadStats(regionType *types.RegionType) ([]goesiv1.GetMarketsRegionIdHi
 }
 
 // Calculate stats
-func calculateStats(regionType *types.RegionType, history []goesiv1.GetMarketsRegionIdHistory200Ok) (*types.RegionStats, error) {
+func calculateStats(regionType *types.RegionType, history []esi.GetMarketsRegionIdHistory200Ok) (*types.RegionStats, error) {
 	retval := types.RegionStats{}
 	retval.RegionID = regionType.RegionID
 	retval.TypeID = regionType.TypeID
 	retval.GeneratedAt = time.Now()
 
 	aWeekAgo := time.Now().AddDate(0, 0, -8)
-	var datapoints []goesiv1.GetMarketsRegionIdHistory200Ok
+	var datapoints []esi.GetMarketsRegionIdHistory200Ok
 
 	var priceSeries []float64
 	var volumeSeries []float64
