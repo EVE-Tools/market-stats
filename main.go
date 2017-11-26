@@ -29,7 +29,7 @@ import (
 // Config holds the application's configuration info from the environment.
 type Config struct {
 	SeedDB      bool   `default:"false" envconfig:"seed_db"`
-	Cron        string `default:"0 52 * * * *" envconfig:"cron"`
+	Cron        string `default:"0 52 0 * * *" envconfig:"cron"`
 	LogLevel    string `default:"debug" split_words:"true"`
 	PostgresURL string `default:"postgres://market-stats@localhost:5432/market-stats?sslmode=disable" envconfig:"postgres_url"`
 	Port        string `default:"8000" envconfig:"port"`
