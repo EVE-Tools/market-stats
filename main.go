@@ -132,7 +132,7 @@ func updateHistoryStats() {
 
 // Get all regionIDs from ESI
 func getRegionIDs() ([]int32, error) {
-	regionIDs, _, err := esiClient.ESI.UniverseApi.GetUniverseRegions(nil)
+	regionIDs, _, err := esiClient.ESI.UniverseApi.GetUniverseRegions(nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func getTypeIDs() ([]int32, error) {
 	params := make(map[string]interface{})
 	params["page"] = int32(1)
 
-	typeResult, _, err := esiClient.ESI.UniverseApi.GetUniverseTypes(params)
+	typeResult, _, err := esiClient.ESI.UniverseApi.GetUniverseTypes(nil, params)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func getTypeIDs() ([]int32, error) {
 
 	for len(typeResult) > 0 {
 		params["page"] = params["page"].(int32) + 1
-		typeResult, _, err = esiClient.ESI.UniverseApi.GetUniverseTypes(params)
+		typeResult, _, err = esiClient.ESI.UniverseApi.GetUniverseTypes(nil, params)
 		if err != nil {
 			return nil, err
 		}
@@ -251,7 +251,7 @@ func checkIfMarketTypeAsyncRetry(typeID int32, marketTypes chan int32, nonMarket
 // Check if type is market type
 func checkIfMarketType(typeID int32) (bool, error) {
 	esiSemaphore <- struct{}{}
-	typeInfo, _, err := esiClient.ESI.UniverseApi.GetUniverseTypesTypeId(typeID, nil)
+	typeInfo, _, err := esiClient.ESI.UniverseApi.GetUniverseTypesTypeId(nil, typeID, nil)
 	<-esiSemaphore
 	if err != nil {
 		return false, err
@@ -427,7 +427,7 @@ func downloadStats(regionType *types.RegionType) ([]esi.GetMarketsRegionIdHistor
 	var err error
 
 	for retries := 3; retries > 0; retries-- {
-		history, _, err := esiClient.ESI.MarketApi.GetMarketsRegionIdHistory(regionType.RegionID, regionType.TypeID, nil)
+		history, _, err := esiClient.ESI.MarketApi.GetMarketsRegionIdHistory(nil, regionType.RegionID, regionType.TypeID, nil)
 
 		if err == nil {
 			return history, nil
