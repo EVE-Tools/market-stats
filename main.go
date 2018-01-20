@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"runtime"
 	"strings"
@@ -431,6 +432,10 @@ func downloadStats(regionType *types.RegionType) ([]esi.GetMarketsRegionIdHistor
 		if err == nil {
 			return history, nil
 		}
+
+		// Add slight randomized backoff e.g. if we're blocked
+		sleepTime := (60000 / retries) + (rand.Int() % 3000)
+		time.Sleep(time.Duration(sleepTime) * time.Millisecond)
 	}
 
 	return nil, err
