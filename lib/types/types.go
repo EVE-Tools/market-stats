@@ -14,15 +14,15 @@ type RegionStats struct {
 	TypeID                                        int32     `json:"type_id"`
 	GeneratedAt                                   time.Time `json:"generated_at"`
 	Date                                          time.Time `json:"date"`
-	Highest                                       float32   `json:"highest"`
-	Lowest                                        float32   `json:"lowest"`
-	Average                                       float32   `json:"average"`
+	Highest                                       float64   `json:"highest"`
+	Lowest                                        float64   `json:"lowest"`
+	Average                                       float64   `json:"average"`
 	Volume                                        int64     `json:"volume"`
 	OrderCount                                    int64     `json:"order_count"`
 	PreviousDate                                  time.Time `json:"previous_date"`
-	PreviousHighest                               float32   `json:"previous_highest"`
-	PreviousLowest                                float32   `json:"previous_lowest"`
-	PreviousAverage                               float32   `json:"previous_average"`
+	PreviousHighest                               float64   `json:"previous_highest"`
+	PreviousLowest                                float64   `json:"previous_lowest"`
+	PreviousAverage                               float64   `json:"previous_average"`
 	PreviousVolume                                int64     `json:"previous_volume"`
 	PreviousOrderCount                            int64     `json:"previous_order_count"`
 	WeekPriceWeightedAverage                      float64   `json:"week_price_weighted_average"`
