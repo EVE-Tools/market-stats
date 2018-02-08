@@ -4,7 +4,7 @@ workspace:
 
 pipeline:
   build:
-    image: golang:alpine
+    image: golang:alpine3.7
     commands:
       - apk update
       - apk add git
@@ -15,6 +15,6 @@ pipeline:
     image: plugins/docker
     repo: evetools/market-stats
     secrets: [ docker_username, docker_password ]
-    tag:
+    tags:
       - latest
-      - ${DRONE_BRANCH}
+      - ${DRONE_COMMIT_SHA:0:8}
