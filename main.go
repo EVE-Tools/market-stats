@@ -23,6 +23,7 @@ import (
 	"github.com/EVE-Tools/market-stats/lib/types"
 	"github.com/antihax/goesi"
 	"github.com/antihax/goesi/esi"
+	"github.com/antihax/goesi/optional"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -176,11 +177,13 @@ func getMarketRegions() ([]int32, error) {
 // Get all typeIDs from ESI
 // TODO: move to static-data RPC
 func getTypeIDs() ([]int32, error) {
+	page := int32(1)
 	var typeIDs []int32
-	params := make(map[string]interface{})
-	params["page"] = int32(1)
+	params := esi.GetUniverseTypesOpts{
+		Page: optional.NewInt32(page),
+	}
 
-	typeResult, _, err := esiClient.ESI.UniverseApi.GetUniverseTypes(nil, params)
+	typeResult, _, err := esiClient.ESI.UniverseApi.GetUniverseTypes(nil, &params)
 	if err != nil {
 		return nil, err
 	}
@@ -188,8 +191,11 @@ func getTypeIDs() ([]int32, error) {
 	typeIDs = append(typeIDs, typeResult...)
 
 	for len(typeResult) > 0 {
-		params["page"] = params["page"].(int32) + 1
-		typeResult, _, err = esiClient.ESI.UniverseApi.GetUniverseTypes(nil, params)
+		page++
+		params := esi.GetUniverseTypesOpts{
+			Page: optional.NewInt32(page),
+		}
+		typeResult, _, err = esiClient.ESI.UniverseApi.GetUniverseTypes(nil, &params)
 		if err != nil {
 			return nil, err
 		}
