@@ -839,7 +839,7 @@ func loadConfig() Config {
 	esiSemaphore = make(chan struct{}, 200)
 
 	logrus.SetLevel(logLevel)
-	logrus.Debugf("Config: %q", config)
+	logrus.Debugf("Config: %+v", config)
 	return config
 }
 
