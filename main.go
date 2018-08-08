@@ -56,7 +56,6 @@ var db *sql.DB
 
 // For limiting requests to type API
 var esiClient goesi.APIClient
-var esiSemaphore chan struct{}
 
 func main() {
 	const userAgent string = "Element43/market-stats (element-43.com)"
@@ -64,7 +63,7 @@ func main() {
 
 	httpClient := &http.Client{
 		Timeout:   timeout,
-		Transport: transport.NewESITransport(userAgent, timeout),
+		Transport: transport.NewESITransport(userAgent, timeout, 500),
 	}
 
 	esiClient = *goesi.NewAPIClient(httpClient, "Element43/market-stats (element-43.com)")
@@ -272,9 +271,7 @@ func checkIfMarketTypeAsyncRetry(typeID int32, marketTypes chan int32, nonMarket
 
 // Check if type is market type
 func checkIfMarketType(typeID int32) (bool, error) {
-	esiSemaphore <- struct{}{}
 	typeInfo, _, err := esiClient.ESI.UniverseApi.GetUniverseTypesTypeId(nil, typeID, nil)
-	<-esiSemaphore
 	if err != nil {
 		return false, err
 	}
@@ -841,8 +838,6 @@ func loadConfig() Config {
 	if err != nil {
 		panic(err)
 	}
-
-	esiSemaphore = make(chan struct{}, 200)
 
 	logrus.SetLevel(logLevel)
 	logrus.Debugf("Config: %+v", config)
