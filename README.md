@@ -18,7 +18,6 @@ Either use the prebuilt Docker images and pass the appropriate env vars (see bel
 * Run `./market-stats` to start the service
 
 ## Deployment Info
-Builds and releases are handled by Drone.
 
 Environment Variable | Default | Description
 --- | --- | ---
