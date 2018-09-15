@@ -12,6 +12,7 @@ COPY . /go/src/github.com/EVE-Tools/market-stats
 WORKDIR /go/src/github.com/EVE-Tools/market-stats
 RUN go get -d -v ./...
 RUN go build
+RUN cp -r /go/src/github.com/EVE-Tools/market-stats/migrations /migrations
 RUN cp /go/src/github.com/EVE-Tools/market-stats/market-stats /market-stats
 
 #
@@ -32,6 +33,7 @@ RUN addgroup -g 1000 -S element43 && \
 USER element43:element43
 
 # Copy build
+COPY --from=build /migrations /migrations
 COPY --from=build /market-stats /market-stats
 
 ENV PORT 43000
